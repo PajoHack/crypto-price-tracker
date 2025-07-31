@@ -1,4 +1,6 @@
 import requests
+import time
+import argparse
 from config import COIN_ID, CURRENCY, ALERT_IF_ABOVE, ALERT_IF_BELOW
 from notify import sound_alert
 from utils import format_price, log_price
@@ -49,13 +51,60 @@ def check_thresholds(price):
         print(f"✅ Price is within range ({format_price(ALERT_IF_BELOW)} - {format_price(ALERT_IF_ABOVE)})")
 
 
-# Run check manually
-if __name__ == "__main__":
+def run_once():
+    """
+    Executes a single price check:
+    - Fetches current price
+    - Prints formatted result
+    - Logs the result to a CSV
+    - Triggers alerts if thresholds are crossed
+
+    Returns:
+        None
+    """
     price = fetch_price()
     if price is not None:
+        print(f"\n🕒 {time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Current Bitcoin price: {format_price(price)}")
         check_thresholds(price)
         log_price(price, COIN_ID)
-        print("Price logged successfully.")
+        print("✅ Price logged successfully.")
     else:
-        print("Failed to fetch price data.")
+        print("❌ Failed to fetch price data.")
+
+def run_loop(limit=None):
+    """
+    Repeatedly executes the run_once() function every 10 minutes.
+
+    Args:
+        limit (int, optional): Number of times to run before stopping.
+                               If None, runs indefinitely.
+
+    Returns:
+        None
+    """
+    count = 0
+    while True:
+        run_once()
+        count += 1
+        if limit and count >= limit:
+            print(f"\n🔚 Stopping after {limit} runs.")
+            break
+        print("⏳ Waiting 10 minutes...\n")
+        time.sleep(600)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Crypto Price Tracker")
+    parser.add_argument("--once", action="store_true", help="Run tracker once and exit")
+    parser.add_argument("--loop", action="store_true", help="Run tracker in 10-minute loop")
+    parser.add_argument("--limit", type=int, help="Number of loops before stopping")
+
+    args = parser.parse_args()
+
+    if args.once:
+        run_once()
+    elif args.loop:
+        run_loop(limit=args.limit)
+    else:
+        print("⚠️ No mode selected. Use --once or --loop.")
+
